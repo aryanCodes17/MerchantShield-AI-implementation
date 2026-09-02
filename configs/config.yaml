@@ -1,0 +1,81 @@
+project:
+  name: MerchantShield AI
+  version: "1.0.0"
+  random_seed: 42
+
+data:
+  raw_filename: creditcard.csv
+  raw_path: data/raw/creditcard.csv
+  processed_dir: data/processed
+  target_column: Class
+  time_column: Time
+  amount_column: Amount
+  # PCA features V1-V28; exclude target and post-decision fields
+  # Time is used only for chronological splitting, not as a model feature.
+  exclude_columns:
+    - Class
+    - Time
+  train_ratio: 0.70
+  val_ratio: 0.15
+  test_ratio: 0.15
+
+business_costs:
+  cost_false_positive: 25.0    # INR cost of blocking/reviewing legitimate txn
+  cost_false_negative: 1.0     # multiplier × transaction amount for missed fraud
+  review_cost_multiplier: 0.5  # fraction of FP cost for REVIEW vs BLOCK
+
+policy:
+  # Selected on validation; defaults overwritten after training
+  threshold_review: 0.15
+  threshold_block: 0.65
+
+threshold_search:
+  start: 0.05
+  end: 0.90
+  step: 0.05
+
+models:
+  logistic_regression:
+    C: 1.0
+    class_weight: balanced
+    max_iter: 1000
+  random_forest:
+    n_estimators: 80
+    max_depth: 8
+    class_weight: balanced
+    min_samples_leaf: 5
+  lightgbm:
+    n_estimators: 200
+    learning_rate: 0.05
+    max_depth: 8
+    num_leaves: 31
+    scale_pos_weight: auto  # computed from train fraud rate, then capped
+    scale_pos_weight_cap: 50
+    min_child_samples: 50
+    subsample: 0.8
+    colsample_bytree: 0.8
+
+calibration:
+  method: sigmoid  # isotonic | sigmoid
+
+monitoring:
+  psi_threshold: 0.2
+  baseline_window: validation
+
+paths:
+  model_dir: models
+  artifacts:
+    preprocessor: models/preprocessor.joblib
+    model: models/fraud_model.joblib
+    calibrator: models/calibrator.joblib
+    metadata: models/model_metadata.json
+    threshold_config: models/threshold_config.json
+    feature_names: models/feature_names.json
+    demo_transactions: data/processed/demo_transactions.json
+    eda_report: reports/eda_summary.json
+    model_comparison: reports/model_comparison.csv
+    test_results: reports/test_results.json
+    final_report: reports/final_report.md
+
+logging:
+  level: INFO

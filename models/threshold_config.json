@@ -1,0 +1,7 @@
+{
+  "threshold": 0.2,
+  "threshold_review": 0.15,
+  "threshold_block": 0.2,
+  "selected_on": "validation_calibrated_probabilities",
+  "test_set_used_for_selection": false
+}

@@ -1,0 +1,8 @@
+.venv
+venv
+__pycache__
+.git
+data/raw/*.csv
+models/*.joblib
+*.log
+.pytest_cache

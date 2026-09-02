@@ -1,0 +1,290 @@
+{
+  "selected_model": "random_forest",
+  "selection_reason": "Lowest expected business cost on the validation set after threshold search (435.63). PR-AUC is reported but was not the sole selection criterion.",
+  "split_summary": {
+    "train": {
+      "n_transactions": 198608,
+      "n_fraud": 366,
+      "fraud_rate_pct": 0.1843
+    },
+    "validation": {
+      "n_transactions": 42559,
+      "n_fraud": 55,
+      "fraud_rate_pct": 0.1292
+    },
+    "test": {
+      "n_transactions": 42559,
+      "n_fraud": 52,
+      "fraud_rate_pct": 0.1222
+    }
+  },
+  "validation_comparison": [
+    {
+      "model": "logistic_regression",
+      "precision": 0.0378619153674833,
+      "recall": 0.9272727272727272,
+      "f1": 0.07275320970042796,
+      "pr_auc": 0.8371646937733951,
+      "roc_auc": 0.981099532878189,
+      "expected_cost_at_0.5": 32513.69
+    },
+    {
+      "model": "random_forest",
+      "precision": 0.6521739130434783,
+      "recall": 0.8181818181818182,
+      "f1": 0.7258064516129032,
+      "pr_auc": 0.8587964933943729,
+      "roc_auc": 0.9811397429974505,
+      "expected_cost_at_0.5": 1000.57
+    },
+    {
+      "model": "lightgbm",
+      "precision": 0.10432569974554708,
+      "recall": 0.7454545454545455,
+      "f1": 0.18303571428571427,
+      "pr_auc": 0.08985679044312368,
+      "roc_auc": 0.9054138220146125,
+      "expected_cost_at_0.5": 9987.85
+    }
+  ],
+  "test_metrics": {
+    "threshold": 0.2,
+    "precision": 0.8809523809523809,
+    "recall": 0.7115384615384616,
+    "f1": 0.7872340425531915,
+    "pr_auc": 0.7648931523049158,
+    "roc_auc": 0.9797850037369411,
+    "confusion_matrix": {
+      "tn": 42502,
+      "fp": 5,
+      "fn": 15,
+      "tp": 37
+    },
+    "false_positive_rate": 0.00011762768485190674,
+    "false_negative_rate": 0.28846153846153844,
+    "fraud_detection_rate": 0.7115384615384616,
+    "true_positives": 37,
+    "false_positives": 5,
+    "true_negatives": 42502,
+    "false_negatives": 15
+  },
+  "test_cost": {
+    "threshold": 0.2,
+    "threshold_review": null,
+    "threshold_block": null,
+    "false_positives": 5,
+    "false_negatives": 15,
+    "fp_cost_total": 125.0,
+    "fn_cost_total": 2669.1600000000003,
+    "expected_cost": 2794.1600000000003,
+    "prevented_fraud_amount": 3499.72,
+    "net_expected_cost": 2794.1600000000003
+  },
+  "test_three_way_cost": {
+    "threshold": 0.2,
+    "threshold_review": 0.15000000000000002,
+    "threshold_block": 0.2,
+    "false_positives": 9,
+    "false_negatives": 14,
+    "fp_cost_total": 175.0,
+    "fn_cost_total": 2521.1600000000003,
+    "expected_cost": 2696.1600000000003,
+    "prevented_fraud_amount": 3795.7200000000003,
+    "net_expected_cost": 2696.1600000000003
+  },
+  "portfolio": {
+    "total_transaction_value": 3096732.92,
+    "actual_fraud_amount": 6168.880000000001,
+    "estimated_expected_loss": 4743.811251804758,
+    "prevented_loss_under_policy": 3795.7200000000003,
+    "flagged_legitimate_count": 9,
+    "false_positive_cost": 175.0,
+    "net_expected_cost": 2696.1600000000003
+  },
+  "calibration": {
+    "brier_raw": 0.004092271433930282,
+    "brier_calibrated": 0.0004308900603867641,
+    "method": "sigmoid"
+  },
+  "error_analysis": {
+    "false_positives": {
+      "count": 5,
+      "mean_amount": 1.062,
+      "median_amount": 0.77,
+      "total_amount": 5.3100000000000005
+    },
+    "false_negatives": {
+      "count": 15,
+      "mean_amount": 177.94400000000002,
+      "median_amount": 12.31,
+      "total_amount": 2669.1600000000003
+    },
+    "true_positives": {
+      "count": 37,
+      "mean_amount": 94.58702702702702,
+      "median_amount": 4.69,
+      "total_amount": 3499.72
+    },
+    "fn_mean_probability": 0.022734036608612826,
+    "fp_mean_probability": 0.4118916634875663,
+    "fp_examples": [
+      {
+        "row_index": 32275,
+        "probability": 0.5785399511256102,
+        "amount": 2.0,
+        "feature_snapshot": {
+          "V1": -0.492173362,
+          "V2": 1.825168302,
+          "V3": -2.557199705,
+          "V4": 2.008921924,
+          "V5": 1.223298046,
+          "V6": -2.078761991,
+          "V7": -0.063277573,
+          "V8": -0.098783337
+        }
+      },
+      {
+        "row_index": 25617,
+        "probability": 0.5131297370954262,
+        "amount": 0.77,
+        "feature_snapshot": {
+          "V1": -0.400517124,
+          "V2": 3.514638997,
+          "V3": -2.902389032,
+          "V4": 3.550912631,
+          "V5": 3.56891593,
+          "V6": -1.575008896,
+          "V7": 2.282890236,
+          "V8": -0.257711925
+        }
+      },
+      {
+        "row_index": 33863,
+        "probability": 0.476775645957645,
+        "amount": 0.77,
+        "feature_snapshot": {
+          "V1": -0.85216662,
+          "V2": 3.636906343,
+          "V3": -2.758496665,
+          "V4": 3.276177814,
+          "V5": 3.552849408,
+          "V6": -1.856119912,
+          "V7": 2.317365663,
+          "V8": -0.263919297
+        }
+      },
+      {
+        "row_index": 24450,
+        "probability": 0.27714327010114853,
+        "amount": 0.77,
+        "feature_snapshot": {
+          "V1": -1.244828044,
+          "V2": 3.268775235,
+          "V3": -3.099748332,
+          "V4": 3.567503871,
+          "V5": 3.485373156,
+          "V6": -2.336791549,
+          "V7": 1.827910687,
+          "V8": 0.097760928
+        }
+      },
+      {
+        "row_index": 35526,
+        "probability": 0.21386971315800155,
+        "amount": 1.0,
+        "feature_snapshot": {
+          "V1": -6.629470387,
+          "V2": 2.87258787,
+          "V3": -4.817946512,
+          "V4": 0.799106043,
+          "V5": -2.842538342,
+          "V6": -1.941350559,
+          "V7": -4.6098372,
+          "V8": 2.130611453
+        }
+      }
+    ],
+    "fn_examples": [
+      {
+        "row_index": 3270,
+        "probability": 0.00035451077030901616,
+        "amount": 2.47,
+        "feature_snapshot": {
+          "V1": 0.051075485,
+          "V2": 1.310426524,
+          "V3": 0.733222065,
+          "V4": 2.620281923,
+          "V5": 1.402357614,
+          "V6": 0.528488565,
+          "V7": 1.086014426,
+          "V8": -0.146422713
+        }
+      },
+      {
+        "row_index": 12237,
+        "probability": 0.000520210255263183,
+        "amount": 187.11,
+        "feature_snapshot": {
+          "V1": -0.129777611,
+          "V2": 0.141547455,
+          "V3": -0.89470187,
+          "V4": -0.457662245,
+          "V5": 0.810607981,
+          "V6": -0.504723385,
+          "V7": 1.373587546,
+          "V8": -0.209476451
+        }
+      },
+      {
+        "row_index": 33873,
+        "probability": 0.00052918493071374,
+        "amount": 19.95,
+        "feature_snapshot": {
+          "V1": 2.091900188,
+          "V2": -0.757459362,
+          "V3": -1.192257634,
+          "V4": -0.755458093,
+          "V5": -0.620323626,
+          "V6": -0.322077027,
+          "V7": -1.082510657,
+          "V8": 0.117199962
+        }
+      },
+      {
+        "row_index": 32191,
+        "probability": 0.0005316162043794187,
+        "amount": 0.0,
+        "feature_snapshot": {
+          "V1": -5.766878735,
+          "V2": -8.402153678,
+          "V3": 0.056543246,
+          "V4": 6.950982945,
+          "V5": 9.880564026,
+          "V6": -5.773191769,
+          "V7": -5.748879199,
+          "V8": 0.721742894
+        }
+      },
+      {
+        "row_index": 39444,
+        "probability": 0.0007068602602114952,
+        "amount": 42.53,
+        "feature_snapshot": {
+          "V1": 1.991976096,
+          "V2": 0.158475887,
+          "V3": -2.583440645,
+          "V4": 0.408669993,
+          "V5": 1.151147061,
+          "V6": -0.096694744,
+          "V7": 0.223050267,
+          "V8": -0.068383878
+        }
+      }
+    ],
+    "notes": {
+      "false_positives": "Legitimate transactions scored at or above the review threshold. These create customer friction and operational review cost.",
+      "false_negatives": "Fraudulent transactions scored below the review threshold and would be approved. These drive expected fraud loss."
+    }
+  },
+  "disclaimer": "All final performance metrics are calculated on a held-out test set that was not used for model selection or threshold optimization."
+}
