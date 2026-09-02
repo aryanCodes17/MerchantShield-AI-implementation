@@ -41,3 +41,6 @@ Thumbs.db
 
 # Kaggle
 kaggle.json
+
+# Local database
+*.db
