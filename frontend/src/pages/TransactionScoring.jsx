@@ -153,56 +153,43 @@ function TransactionScoring() {
   */
 
   async function loadDemoReview() {
-    setError("");
-    setResult(null);
-    setPayment(null);
-    setLoading(true);
+  setError("");
+  setResult(null);
+  setPayment(null);
+  setLoading(true);
 
-    try {
-      const response = await fetch(
-        `${API_URL}/transactions`
+  try {
+    const response = await fetch(`${API_URL}/demo/review`);
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data?.detail || "Unable to generate a REVIEW transaction."
       );
-
-      if (!response.ok) {
-        throw new Error("Unable to load transaction history.");
-      }
-
-      const transactions = await response.json();
-
-      const reviewTransaction = transactions.find(
-        (transaction) =>
-          transaction.decision === "REVIEW" &&
-          transaction.features &&
-          typeof transaction.features === "object"
-      );
-
-      if (!reviewTransaction) {
-        throw new Error(
-          "No real REVIEW transaction exists in history yet. Score a transaction that returns REVIEW once, then click Demo Review again."
-        );
-      }
-
-      const reviewFeatures = Object.fromEntries(
-        featureNames.map((name) => [
-          name,
-          Number(reviewTransaction.features[name] ?? 0),
-        ])
-      );
-
-      setAmount(Number(reviewTransaction.amount || 500));
-      setFeatures(reviewFeatures);
-      setResult(reviewTransaction);
-      setPayment(null);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Unable to load a REVIEW transaction"
-      );
-    } finally {
-      setLoading(false);
     }
+
+    const reviewFeatures = Object.fromEntries(
+      featureNames.map((name) => [
+        name,
+        Number(data.features?.[name] ?? 0),
+      ])
+    );
+
+    setAmount(Number(data.amount || data.transaction_amount || 0));
+    setFeatures(reviewFeatures);
+    setResult(data);
+    setPayment(null);
+  } catch (err) {
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Unable to generate a REVIEW transaction."
+    );
+  } finally {
+    setLoading(false);
   }
+}
 
   /*
   |--------------------------------------------------------------------------

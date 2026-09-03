@@ -16,9 +16,12 @@ import hashlib
 from fastapi import Request
 from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
-
-from pydantic import BaseModel
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel  
+from src.evaluation.calibration import apply_calibrator
 from sqlalchemy.orm import Session
+from src.config import get_project_root
 
 from .database import (
     Base,
@@ -161,6 +164,7 @@ def predict(
         result = risk_engine.score_transaction(
             transaction.features,
             transaction_amount=transaction.amount,
+            include_explanation=False,
         )
 
         # Save prediction to database
@@ -222,6 +226,146 @@ def predict(
             detail=str(exc),
         )
 
+
+# --------------------------------------------------
+# Demo Review Transaction
+# --------------------------------------------------
+
+@app.get("/demo/review")
+def demo_review(db: Session = Depends(get_db)):
+    """Find one real dataset transaction that falls into REVIEW."""
+
+    root = get_project_root()
+    data_path = root / "data" / "raw" / "creditcard.csv"
+
+    if not data_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Dataset not found at {data_path}",
+        )
+
+    try:
+        df = pd.read_csv(data_path)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to load credit-card dataset: {exc}",
+        ) from exc
+
+    feature_names = risk_engine.feature_names
+
+    missing = [
+        name for name in feature_names
+        if name not in df.columns
+    ]
+
+    if missing:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dataset is missing model features: {missing}",
+        )
+
+    # Use the real dataset features.
+    X = df[feature_names].copy()
+
+    try:
+        # Batch prediction: much faster than scoring row-by-row.
+        raw_probs = risk_engine.model.predict_proba(X)[:, 1]
+
+        if risk_engine.calibrator is not None:
+            calibrated_probs = apply_calibrator(
+                risk_engine.calibrator,
+                raw_probs,
+            )
+        else:
+            calibrated_probs = raw_probs
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unable to score dataset: {exc}",
+        ) from exc
+
+    # Find genuine REVIEW examples using the production thresholds.
+    review_indices = np.where(
+        (calibrated_probs >= risk_engine.threshold_review)
+        & (calibrated_probs < risk_engine.threshold_block)
+    )[0]
+
+    if len(review_indices) == 0:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "No genuine REVIEW transaction was found "
+                "in creditcard.csv using the current model thresholds."
+            ),
+        )
+
+    # Take the first real REVIEW transaction.
+    idx = int(review_indices[0])
+
+    features = {
+        name: float(df.iloc[idx][name])
+        for name in feature_names
+    }
+
+    # Amount is stored separately in the dataset.
+    amount = float(df.iloc[idx]["Amount"])
+
+    # Run the normal production scorer ONCE.
+    result = risk_engine.score_transaction(
+        features,
+        transaction_amount=amount,
+        include_explanation=True,
+    )
+
+    # Safety check — never save something that isn't actually REVIEW.
+    if result["decision"] != "REVIEW":
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Internal consistency error: "
+                "selected transaction is no longer REVIEW."
+            ),
+        )
+
+    transaction_id = f"TXN-{uuid.uuid4().hex[:8].upper()}"
+
+    db_transaction = Transaction(
+        transaction_id=transaction_id,
+        amount=amount,
+        fraud_probability=float(
+            result.get("fraud_probability", 0)
+        ),
+        raw_fraud_probability=float(
+            result.get("raw_fraud_probability", 0)
+        ),
+        risk_score=float(
+            result.get("risk_score", 0)
+        ),
+        decision="REVIEW",
+        expected_loss=float(
+            result.get("expected_loss", 0)
+        ),
+        features=features,
+        top_risk_factors=result.get(
+            "top_risk_factors",
+            [],
+        ),
+    )
+
+    db.add(db_transaction)
+    db.commit()
+    db.refresh(db_transaction)
+
+    return {
+        **result,
+        "transaction_id": transaction_id,
+        "amount": amount,
+        "features": features,
+        "demo": True,
+        "source": "real_creditcard_dataset",
+    }
 # --------------------------------------------------
 # Transaction History
 # --------------------------------------------------
