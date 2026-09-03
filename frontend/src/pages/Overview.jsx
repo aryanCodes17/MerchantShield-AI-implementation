@@ -21,7 +21,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-
+import { API_URL } from "../config";
 import {
   useEffect,
   useMemo,

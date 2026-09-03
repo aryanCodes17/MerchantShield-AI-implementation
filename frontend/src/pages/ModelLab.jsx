@@ -7,7 +7,7 @@ import {
   Target,
   ShieldCheck,
 } from "lucide-react";
-
+import { API_URL } from "../config";
 import { useEffect, useState } from "react";
 
 

@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 
+import { API_URL } from "../config";
 import { useEffect, useMemo, useState } from "react";
 
 

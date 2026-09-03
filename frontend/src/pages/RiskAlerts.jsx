@@ -6,7 +6,7 @@ import {
   RefreshCw,
   Loader2,
 } from "lucide-react";
-
+import { API_URL } from "../config";
 import {
   useEffect,
   useMemo,
