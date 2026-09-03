@@ -159,7 +159,7 @@ function TransactionScoring() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/transactions"
+        `${API_URL}/transactions`
       );
 
       if (!response.ok) {
@@ -276,7 +276,7 @@ function TransactionScoring() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/predict",
+        `${API_URL}/predict`,
         {
           method: "POST",
 
@@ -386,7 +386,7 @@ function TransactionScoring() {
       */
 
       const response = await fetch(
-        "http://127.0.0.1:8000/razorpay/create-order",
+        `${API_URL}/razorpay/create-order`,
         {
           method: "POST",
 
@@ -548,7 +548,7 @@ function TransactionScoring() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/razorpay/verify",
+        `${API_URL}/razorpay/verify`,
         {
           method: "POST",
 
@@ -1674,3 +1674,4 @@ function TransactionScoring() {
 
 
 export default TransactionScoring;
+

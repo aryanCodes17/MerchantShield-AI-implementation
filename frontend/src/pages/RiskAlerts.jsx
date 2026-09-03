@@ -104,7 +104,7 @@ function RiskAlerts() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/transactions"
+        `${API_URL}/transactions`
       );
 
       if (!response.ok) {
@@ -893,3 +893,4 @@ function RiskAlerts() {
 
 
 export default RiskAlerts;
+

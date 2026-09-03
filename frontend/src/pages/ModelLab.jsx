@@ -357,7 +357,7 @@ function ModelLab() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/model-metrics"
+        `${API_URL}/model-metrics`
       );
 
       if (!response.ok) {
@@ -390,7 +390,7 @@ function ModelLab() {
   try {
 
     const response = await fetch(
-      "http://127.0.0.1:8000/threshold-analysis"
+      `${API_URL}/threshold-analysis`
     );
 
     if (!response.ok) {
@@ -1328,7 +1328,7 @@ useEffect(() => {
     <div className="mt-5 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
 
       <img
-        src="http://127.0.0.1:8000/model-figures/roc-pr"
+        src={`${API_URL}/model-figures/roc-pr`}
         alt="ROC and Precision-Recall curves"
         className="h-auto w-full"
       />
@@ -1388,7 +1388,8 @@ useEffect(() => {
     <div className="mt-5 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
 
       <img
-        src="http://127.0.0.1:8000/model-figures/threshold"
+        src={`${API_URL}/model-figures/threshold`}
+
         alt="Threshold analysis"
         className="h-auto w-full"
       />
@@ -1496,3 +1497,4 @@ useEffect(() => {
 
 
 export default ModelLab;
+

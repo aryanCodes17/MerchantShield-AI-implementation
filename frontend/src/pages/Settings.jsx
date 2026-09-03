@@ -22,7 +22,7 @@ function Settings() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/model-info"
+        `${API_URL}/model-info`
       );
 
       if (!response.ok) {
@@ -266,7 +266,7 @@ function Settings() {
             </p>
 
             <p className="mt-2 text-lg font-bold text-red-700">
-              ≥ {blockThreshold.toFixed(2)}
+              = {blockThreshold.toFixed(2)}
             </p>
 
             <p className="mt-1 text-xs text-red-700">
@@ -354,7 +354,7 @@ function Settings() {
               </p>
 
               <p className="mt-1 text-xs text-slate-500">
-                Alerts are generated for risk scores ≥ 50
+                Alerts are generated for risk scores = 50
               </p>
             </div>
 
@@ -455,3 +455,5 @@ function Settings() {
 }
 
 export default Settings;
+
+

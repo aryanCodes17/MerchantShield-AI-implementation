@@ -62,7 +62,7 @@ function Transactions() {
     try {
 
       const response = await fetch(
-        "http://127.0.0.1:8000/transactions"
+        `${API_URL}/transactions`
       );
 
 
@@ -95,7 +95,7 @@ function Transactions() {
 
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/transactions/${selectedTransaction.id}/review`,
+        `${API_URL}/transactions/${selectedTransaction.id}/review`,
         {
           method: "POST",
         }
@@ -1437,3 +1437,4 @@ function Transactions() {
 }
 
 export default Transactions;
+
