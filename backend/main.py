@@ -77,6 +77,7 @@ app.add_middleware(
         "http://localhost:4174",
         "http://127.0.0.1:4174",
         "https://merchantshield-ai.onrender.com",
+        "https://merchantshield-ai-implementation-1.onrender.com",
     ],
     allow_credentials=True,
     allow_methods=["*"],
