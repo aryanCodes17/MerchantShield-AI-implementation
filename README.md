@@ -1,244 +1,536 @@
 # MerchantShield AI
 
-**Defense-only AI risk engine for merchant transaction-fraud detection.**
+> **AI-powered fraud risk decisioning for merchant transactions**
 
-MerchantShield AI scores a card transaction and returns:
+MerchantShield AI is a production-style fraud risk management platform that helps merchants make safer payment decisions using machine learning, calibrated fraud probabilities, explainable AI, human review, and payment verification.
 
-1. Calibrated fraud probability (0–1)
-2. Risk score (0–100)
-3. Decision: `APPROVE` / `REVIEW` / `BLOCK`
-4. Top contributing features
-5. Expected fraud loss (probability × amount — an expected-value estimate, not guaranteed loss)
+It converts a transaction into an actionable decision:
 
-This project is strictly defensive. It does **not** generate fraud, simulate attacks, steal credentials, or teach evasion.
+**APPROVE → REVIEW → BLOCK**
+
+while showing why the model considers a transaction risky.
 
 ---
 
-## 1. Project overview
+## 🚀 Why MerchantShield?
 
-A production-style internship portfolio system: imbalanced classification, cost-sensitive thresholds, probability calibration, explainability, a FastAPI scoring service, a Streamlit risk console, monitoring, and tests.
+Traditional fraud detection systems often stop at:
 
-## 2. Problem statement
+> "This transaction looks suspicious."
 
-Merchants lose money when fraudulent payments are authorized (false negatives) and lose customers/operations time when legitimate payments are blocked or sent to review (false positives). The product problem is not “maximize accuracy”; it is **minimize expected business cost** under a three-way policy.
+MerchantShield goes further.
 
-## 3. Why fraud detection is difficult
+It answers:
 
-- Extreme class imbalance (typically well under 1% fraud).
-- Accuracy is misleading: a model that always predicts legitimate looks strong.
-- Decision thresholds must reflect **asymmetric costs**.
-- Production traffic arrives in time; random splits leak the future into training.
-- Probabilities must be calibrated if they drive expected-loss and policy.
+- How risky is this transaction?
+- How confident is the model?
+- Why is it risky?
+- Should we approve, review, or block it?
+- What happens when a human needs to review it?
+- Was the resulting payment actually verified?
 
-## 4. Architecture
+The platform combines ML prediction, probability calibration, policy-based decisioning, explainability, human review, and payment verification into one workflow.
 
-```
-transaction features
-        │
-        ▼
- preprocessing pipeline (median impute + scale)
-        │
-        ▼
- classifier (selected on validation)
-        │
-        ▼
- probability calibrator (fit on validation)
-        │
-        ▼
- risk engine: score, policy, expected loss, SHAP
-        │
-        ├── FastAPI  POST /predict
-        └── Streamlit risk console
-```
+---
 
-## 5. Dataset
+# 🎯 Problem Statement
 
-[Credit Card Fraud Detection](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud) — Machine Learning Group, Université Libre de Bruxelles.
+Merchants face two competing risks:
 
-Anonymized PCA features `V1`–`V28`, `Time`, `Amount`, and binary target `Class` (1 = fraud).
+### Fraud Loss
 
-Download:
+Fraudulent transactions that are incorrectly approved can directly cause financial loss.
 
-```bash
-python scripts/download_data.py
-```
+### False Positive Loss
 
-Do not invent metrics. All reported numbers are produced by `python scripts/train.py`.
+Legitimate transactions that are blocked unnecessarily can cause:
 
-## 6. Data preprocessing
+- Customer friction
+- Lost revenue
+- Manual operational workload
+- Poor payment experience
 
-- Drop duplicate rows before splitting.
-- Exclude `Class` (target) and `Time` (split key only) from model features.
-- Median impute + `StandardScaler` inside a sklearn pipeline fitted **on train only**.
+Therefore, simply maximizing ML accuracy is not enough.
 
-## 7. Leakage prevention
+MerchantShield separates:
 
-Automated checks:
+```text
+ML Prediction
+      ↓
+Probability Calibration
+      ↓
+Risk Policy
+      ↓
+Business Decision
+      ↓
+Human Review / Payment
 
-- Target not in feature list
-- No overlapping row indices across splits
-- Chronological order: train → validation → test
+🧠 Core Features
+1. AI Fraud Scoring
 
-**All final performance metrics are calculated on a held-out test set that was not used for model selection or threshold optimization.**
+Each transaction is evaluated using a trained Random Forest fraud classifier.
 
-## 8. Model selection
+The scoring engine produces:
 
-Candidates: logistic regression (balanced class weights), random forest (balanced class weights), LightGBM (`scale_pos_weight` from the **training** class ratio).
+Raw fraud probability
+Calibrated fraud probability
+Risk score from 0–100
+Expected fraud loss estimate
+Final risk decision
+2. Three-Way Risk Decisioning
 
-Selection criterion: **lowest expected business cost on validation** after threshold search. PR-AUC / ROC-AUC are reported and used as diagnostic metrics, not as the sole winner rule.
+MerchantShield converts calibrated fraud probability into an operational action:
 
-See `reports/model_comparison.csv` and `reports/final_report.md` after training.
+Decision	Meaning
+APPROVE	Transaction is sufficiently low risk
+REVIEW	Transaction requires human inspection
+BLOCK	Transaction exceeds the configured fraud-risk threshold
 
-## 9. Imbalanced classification strategy
+The thresholds are configuration-driven and applied by the backend risk engine.
 
-- Class weights / `scale_pos_weight` (train-set derived)
-- Threshold optimization on validation
-- PR-AUC as the ranking metric of record
+This keeps ML prediction separate from business policy.
 
-SMOTE is **not** used. If resampling is added later, it must be applied to the training set only. Resampling validation or test would distort operating-point estimates.
+📊 ML Pipeline
+Transaction
+     |
+     v
+V1 ... V28 + Amount
+     |
+     v
+Random Forest Classifier
+     |
+     v
+Raw Fraud Probability
+     |
+     v
+Probability Calibration
+     |
+     v
+Calibrated Fraud Probability
+     |
+     v
+Risk Decision Policy
+   /       |       \
+APPROVE  REVIEW    BLOCK
+             |
+             v
+       Risk Score
+             |
+             v
+       Expected Loss
+             |
+             v
+       SHAP Explanation
+Why calibration?
 
-## 10. Threshold optimization
+A model's raw probability is not automatically a reliable business probability.
 
-Grid: 0.05, 0.10, …, 0.90 on **validation calibrated probabilities**.
+MerchantShield calibrates the model output before applying risk thresholds.
 
-The test set is scored **once** after thresholds are frozen.
+This allows the system to distinguish:
 
-## 11. Business cost model
+What the model predicts
 
-Configurable in `configs/config.yaml`:
+from:
 
-- `C_FP`: cost of incorrectly blocking/reviewing a legitimate transaction
-- `C_FN`: missed-fraud loss = multiplier × transaction amount
-- REVIEW is cheaper than BLOCK for legitimate traffic, and still carries residual fraud risk
+What action the business should take
 
-`Expected cost = FP cost + FN cost`
+🔍 Explainable AI
 
-## 12. Probability calibration
+A fraud score alone is not enough for an operations team.
 
-Isotonic regression (default) or Platt scaling is fit on validation raw scores. Brier score and a calibration curve compare raw vs calibrated probabilities on the held-out test set.
+MerchantShield uses SHAP to identify the features that contributed most strongly to an individual prediction.
 
-Calibration matters because risk score, expected loss, and APPROVE/REVIEW/BLOCK all consume probabilities as if they were frequencies.
+The dashboard displays:
 
-## 13. Explainability
-
-Per-transaction SHAP (trees) or signed coefficient × value (linear). Language is attribution-only: these features contributed most to the model’s prediction — not “this is definitely fraud.”
-
-Risk score mapping: `risk_score = round(calibrated_probability × 100)`.
-
-## 14. API documentation
-
-```bash
-uvicorn api.main:app --reload --port 8000
-```
-
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/health` | Liveness + model loaded flag |
-| GET | `/model-info` | Frozen metadata, features, thresholds |
-| GET | `/monitoring` | Volume, decision mix, PSI |
-| POST | `/predict` | Score one transaction |
-
-If the model cannot score a request, the API returns **4xx/5xx**. It never silently returns `APPROVE`.
+Top risk factors
+SHAP contribution values
+Whether each feature increased or decreased risk
+Human-readable explanations
 
 Example:
 
-```bash
-curl -X POST http://127.0.0.1:8000/predict ^
-  -H "Content-Type: application/json" ^
-  -d "{\"Amount\": 12500, \"V1\": -1.2, \"V2\": 0.4}"
-```
+V4   ↑ increased fraud risk
+V19  ↑ increased fraud risk
+V14  ↑ increased fraud risk
+V3   ↓ reduced fraud risk
+V10  ↓ reduced fraud risk
 
-(Include `V1`–`V28` in a real call; missing values are imputed. Completely empty feature sets are rejected.)
+This allows an operator to understand:
 
-## 15. Dashboard
+"Why was this transaction flagged?"
 
-```bash
-streamlit run app/dashboard.py
-```
+rather than seeing only a probability.
 
-Dataset stats, model comparison, test metrics, cost/threshold plots, calibration, confusion matrix, SHAP, and a demo scoring workspace with preloaded **synthetic** examples drawn from feature distributions (not real customer transactions).
+👤 Human-in-the-Loop Review
 
-## 16. Monitoring
+Transactions classified as REVIEW can be inspected by an operator.
 
-Lightweight in-process monitor: volume, decision mix, average amount, prediction distribution, Population Stability Index vs a baseline. Monitoring only — no attack simulation.
+The review workflow includes:
 
-## 17. Testing
+Transaction details
+Fraud probability
+Risk score
+Expected loss
+SHAP risk factors
+Review action
+Review timestamp
 
-```bash
-pytest
-```
+This creates a human-in-the-loop fraud workflow instead of treating ML predictions as unquestionable decisions.
 
-Covers preprocessing, leakage, policy, expected loss, calibration, monitoring, scorer fail-closed behavior, and API validation/`/predict`.
+💳 Razorpay Integration
 
-## 18. Results
+MerchantShield integrates with Razorpay Test Mode to demonstrate the complete payment lifecycle.
 
-**All final performance metrics are calculated on a held-out test set that was not used for model selection or threshold optimization.**
+Payment Flow
+APPROVE Transaction
+        |
+        v
+Create Razorpay Order
+        |
+        v
+Razorpay Test Payment
+        |
+        v
+Client Payment Response
+        |
+        v
+Server-side Signature Verification
+        |
+        v
+Payment VERIFIED
+Webhook Processing
 
-### Validation comparison (threshold 0.50, for diagnostics)
+The backend handles:
 
-| Model | Precision | Recall | F1 | PR-AUC | ROC-AUC | Expected cost @ 0.50 |
-|---|---:|---:|---:|---:|---:|---:|
-| Logistic regression | 0.038 | 0.927 | 0.073 | 0.837 | 0.981 | 32,514 |
-| Random forest | 0.652 | 0.818 | 0.726 | 0.859 | 0.981 | 1,001 |
-| LightGBM | 0.104 | 0.745 | 0.183 | 0.090 | 0.905 | 9,988 |
+payment.authorized
+payment.captured
+payment.failed
+order.paid
 
-**Selected model: random forest** — lowest expected business cost on validation after threshold search (435.63 at threshold 0.70 on raw scores; after calibration, operating threshold 0.55).
+Webhook signatures are validated using the raw request body and configured webhook secret.
 
-LightGBM is weaker here (validation PR-AUC 0.09). That is a real outcome, not hidden. Likely causes: PCA features plus a still-aggressive positive weight, and boosting over-focusing on hard negatives. Random forest with `class_weight="balanced"` ranked the rare class more stably. Next steps if boosting is required: leaf-wise regularization, lower learning rate, and tuning `min_child_samples` / `num_leaves` on validation only.
+The implementation also includes:
 
-### Held-out test (random forest, threshold 0.55)
+Duplicate event handling
+Server-side payment verification
+Protection against payment state downgrades
+Handling of out-of-order payment events
 
-| Precision | Recall | F1 | PR-AUC | ROC-AUC | Expected cost |
-|---:|---:|---:|---:|---:|---:|
-| 0.902 | 0.712 | 0.796 | 0.684 | 0.959 | 2,769 |
+Razorpay is used in Test Mode for this project.
 
-Confusion: TP=37, FP=4, TN=42,503, FN=15 (52 fraud cases in test).
+🧪 Verified Demo Transaction
 
-Test PR-AUC (0.68) is lower than validation PR-AUC (0.86). The later time window has a lower fraud rate and a different mix; that gap is expected with a chronological split and should not be papered over.
+The application includes a small, version-controlled demo transaction so that the production demo does not require the complete fraud dataset at runtime.
 
-Error analysis: the 4 false positives are tiny-amount legitimate rows (mean amount ≈ 1.08). The 15 false negatives carry almost all remaining loss (mean amount ≈ 178). The policy is conservative on customer friction and still misses some higher-value fraud — the central product tradeoff.
+The demo feature vector was derived from a real dataset row and is re-scored live by the production fraud model.
 
-Plots: `reports/figures/`. Full write-up: `reports/final_report.md`.
+Current verified result
+Transaction Amount:       ₹7.58
+Raw Fraud Probability:    0.6799
+Calibrated Probability:   0.1874
+Risk Score:                   19
+Decision:                 REVIEW
 
-## 19. Limitations
+The same production scoring pipeline generates the SHAP explanation.
 
-- PCA features are not business-interpretable attributes.
-- 2013 European card data ≠ your live merchant mix.
-- Expected loss is not guaranteed loss.
-- Public labels are not a production case-management system.
+This provides a deterministic demonstration while keeping the full dataset out of the production runtime.
 
-## 20. Future improvements
+🏗️ System Architecture
+                  ┌───────────────────────┐
+                  │   React + Vite UI     │
+                  │   Merchant Dashboard  │
+                  └───────────┬───────────┘
+                              │
+                           REST API
+                              │
+                              ▼
+                  ┌───────────────────────┐
+                  │    FastAPI Backend    │
+                  └───────────┬───────────┘
+                              │
+              ┌───────────────┼───────────────┐
+              │               │               │
+              ▼               ▼               ▼
+       ┌────────────┐ ┌──────────────┐ ┌─────────────┐
+       │ Random     │ │ Probability  │ │    SHAP     │
+       │ Forest     │ │ Calibration  │ │ Explanation │
+       │ Model      │ │              │ │             │
+       └────────────┘ └──────────────┘ └─────────────┘
+              │               │
+              └───────────────┘
+                      │
+                      ▼
+              ┌─────────────────┐
+              │   Risk Policy   │
+              └───────┬─────────┘
+                      │
+             ┌────────┼────────┐
+             ▼        ▼        ▼
+          APPROVE   REVIEW    BLOCK
+             │        │
+             │        ▼
+             │   Human Review
+             │
+             ▼
+       Razorpay Test Mode
+             │
+             ▼
+      Payment Verification
+             │
+             ▼
+      Transaction Ledger
+🛠️ Technology Stack
+Frontend
+React
+Vite
+Tailwind CSS
+Recharts
+Lucide Icons
+Backend
+Python
+FastAPI
+SQLAlchemy
+SQLite
+Pydantic
+Machine Learning
+scikit-learn
+Random Forest
+Probability Calibration
+SHAP
+pandas
+NumPy
+joblib
+Payments
+Razorpay Test Mode
+Server-side payment signature verification
+Webhook signature verification
+Deployment
+GitHub
+Render
+📁 Project Structure
+merchantshield-ai/
+│
+├── backend/
+│   ├── main.py
+│   ├── database.py
+│   └── models.py
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       ├── pages/
+│       └── App.jsx
+│
+├── src/
+│   ├── config/
+│   └── risk_engine/
+│       └── scorer.py
+│
+├── models/
+│   ├── fraud_model.joblib
+│   ├── calibrator.joblib
+│   ├── preprocessor.joblib
+│   ├── feature_names.json
+│   ├── model_metadata.json
+│   └── threshold_config.json
+│
+├── data/
+│   └── processed/
+│       └── demo_transactions.json
+│
+├── requirements.txt
+└── README.md
+⚙️ Running Locally
+Backend
 
-- Production feature store (device, velocity, merchant MCC) instead of PCA-only inputs
-- Online calibration / champion-challenger
-- Human-in-the-loop review outcomes as delayed labels
-- Stronger drift monitors on each feature, not only scores
+From the project root:
 
----
+cd D:\merchantshield-ai
 
-## Run locally
+Activate the virtual environment:
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
-python scripts/download_data.py
-python scripts/train.py
-python scripts/evaluate.py
-uvicorn api.main:app --reload --port 8000
-streamlit run app/dashboard.py
-pytest
-```
+.venv\Scripts\Activate.ps1
 
-### Docker (API)
+Start FastAPI:
 
-Train first so `models/*.joblib` exist, then:
+uvicorn backend.main:app --reload --port 8000
 
-```bash
-docker build -t merchantshield-ai .
-docker run -p 8000:8000 merchantshield-ai
-```
+Backend:
 
-## Security / defense-only
+http://127.0.0.1:8000
 
-This repository scores and explains transaction risk for merchants. It does not include fraud generation, credential theft, bypass methods, or exploitation tooling.
+Swagger API documentation:
+
+http://127.0.0.1:8000/docs
+Frontend
+
+Open another terminal:
+
+cd D:\merchantshield-ai\frontend
+npm install
+npm run dev
+
+Frontend:
+
+http://127.0.0.1:5173
+
+The frontend backend URL is configured through:
+
+VITE_API_URL
+🔌 API Endpoints
+Health
+GET /health
+Fraud Prediction
+POST /predict
+Transactions
+GET /transactions
+Demo Review
+GET /demo/review
+Human Review
+POST /transactions/{transaction_id}/review
+Razorpay
+POST /razorpay/create-order
+POST /razorpay/verify
+POST /razorpay/webhook
+
+Interactive API documentation:
+
+/docs
+🚀 Production Deployment
+
+MerchantShield is deployed using Render.
+
+React/Vite Frontend
+        |
+        v
+FastAPI Backend
+        |
+        ├── Fraud Model
+        ├── Calibration
+        ├── SHAP
+        ├── SQLite Transaction Ledger
+        └── Razorpay Test Mode
+
+The frontend communicates with the deployed backend through:
+
+VITE_API_URL
+
+Sensitive credentials are stored as environment variables and are not committed to the repository.
+
+Required Razorpay configuration:
+
+RAZORPAY_KEY_ID
+RAZORPAY_KEY_SECRET
+RAZORPAY_WEBHOOK_SECRET
+🔐 Security
+
+MerchantShield follows defensive security practices including:
+
+Environment-based secret management
+Server-side Razorpay payment verification
+Raw-body webhook signature verification
+Webhook duplicate-event handling
+Protection against payment state downgrades
+Database exclusion from version control
+Environment-file exclusion from version control
+
+This project is strictly defensive.
+
+It does not generate fraud, attack payment systems, steal credentials, or provide fraud-evasion techniques.
+
+🎬 Recommended Demo Flow
+
+For a live demonstration:
+
+Dashboard
+    ↓
+Transaction Scoring
+    ↓
+Analyze Transaction
+    ↓
+Risk Decision
+    ↓
+SHAP Explanation
+    ↓
+APPROVE / REVIEW / BLOCK
+    ↓
+Human Review
+    ↓
+Razorpay Test Payment
+    ↓
+Server-side Verification
+    ↓
+Transaction History
+Product Story
+
+Detect → Explain → Decide → Review → Transact → Verify
+
+📌 Design Principles
+Separate Prediction from Policy
+
+The ML model estimates fraud probability.
+
+The risk policy determines the operational action.
+
+This makes business thresholds easier to change without retraining the model.
+
+Explain Risk
+
+A probability alone does not tell an operations team what to investigate.
+
+SHAP provides feature-level evidence behind the prediction.
+
+Keep Humans in the Loop
+
+Uncertain transactions can be routed to human review instead of forcing an automatic decision.
+
+Verify the Payment
+
+A fraud decision and a successful payment are separate events.
+
+MerchantShield therefore treats payment verification and fraud decisioning as distinct parts of the transaction lifecycle.
+
+⚠️ Limitations
+
+MerchantShield is a hackathon/prototype system and is not a production-certified payment fraud platform.
+
+Current limitations include:
+
+SQLite is used for the transaction ledger.
+Razorpay integration uses Test Mode.
+The demo transaction is deterministic.
+Model performance depends on training data and feature quality.
+Production deployment would require additional monitoring, access controls, database infrastructure, model governance, and operational safeguards.
+🔮 Future Improvements
+
+Potential production extensions include:
+
+Real-time feature pipelines
+Merchant-specific risk models
+Behavioral transaction features
+Model drift monitoring
+Automated threshold optimization
+Persistent production database
+Role-based access control
+Detailed audit logs
+Continuous model evaluation
+Feedback-driven model retraining
+Fraud graph/network analysis
+📜 Disclaimer
+
+MerchantShield AI is an educational and defensive fraud-risk decisioning project.
+
+Fraud probabilities and expected-loss values are model estimates and should not be interpreted as guarantees of fraud or financial loss.
+
+
+### Then commit it on GitHub
+
+At the bottom of GitHub:
+
+**Commit changes → Commit directly to `main`**
+
+Commit message:
+
+```text
+Update README for current architecture
