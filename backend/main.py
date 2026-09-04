@@ -805,7 +805,8 @@ async def razorpay_webhook(
                 )
 
                 if transaction:
-                    transaction.payment_status = "AUTHORIZED"
+                    if not transaction.payment_verified:
+                        transaction.payment_status = "AUTHORIZED"
 
                     if payment_id:
                         transaction.razorpay_payment_id = payment_id
