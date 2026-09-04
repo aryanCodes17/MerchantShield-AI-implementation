@@ -595,7 +595,7 @@ MerchantShield is designed to run as two deployed services:
 The frontend uses:
 
 ```env
-VITE_API_URL=https://merchantshield-ai-implementation-1.onrender.com.
+VITE_API_URL=https://merchantshield-ai-implementation-1.onrender.com
 ```
 
 The backend handles:
