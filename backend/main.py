@@ -10,7 +10,7 @@ from fastapi import (
     FastAPI,
     HTTPException,
 )
-import os
+import os,json
 import hmac
 import hashlib
 from fastapi import Request
@@ -233,99 +233,62 @@ def predict(
 
 @app.get("/demo/review")
 def demo_review(db: Session = Depends(get_db)):
-    """Find one real dataset transaction that falls into REVIEW."""
+    """Score a verified dataset-derived demo transaction."""
 
     root = get_project_root()
-    data_path = root / "data" / "raw" / "creditcard.csv"
+    demo_path = root / "data" / "processed" / "demo_transactions.json"
 
-    if not data_path.exists():
+    if not demo_path.exists():
         raise HTTPException(
             status_code=404,
-            detail=f"Dataset not found at {data_path}",
+            detail=f"Demo transactions not found at {demo_path}",
         )
 
     try:
-        df = pd.read_csv(data_path)
+        with open(demo_path, "r", encoding="utf-8") as f:
+            demo_transactions = json.load(f)
     except Exception as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"Unable to load credit-card dataset: {exc}",
+            detail=f"Unable to load demo transactions: {exc}",
         ) from exc
 
-    feature_names = risk_engine.feature_names
+    demo = next(
+        (
+            item
+            for item in demo_transactions
+            if item.get("id") == "demo_verified_review_1"
+        ),
+        None,
+    )
 
-    missing = [
-        name for name in feature_names
-        if name not in df.columns
-    ]
-
-    if missing:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Dataset is missing model features: {missing}",
-        )
-
-    # Use the real dataset features.
-    X = df[feature_names].copy()
-
-    try:
-        # Batch prediction: much faster than scoring row-by-row.
-        raw_probs = risk_engine.model.predict_proba(X)[:, 1]
-
-        if risk_engine.calibrator is not None:
-            calibrated_probs = apply_calibrator(
-                risk_engine.calibrator,
-                raw_probs,
-            )
-        else:
-            calibrated_probs = raw_probs
-
-    except Exception as exc:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Unable to score dataset: {exc}",
-        ) from exc
-
-    # Find genuine REVIEW examples using the production thresholds.
-    review_indices = np.where(
-        (calibrated_probs >= risk_engine.threshold_review)
-        & (calibrated_probs < risk_engine.threshold_block)
-    )[0]
-
-    if len(review_indices) == 0:
+    if demo is None:
         raise HTTPException(
             status_code=404,
-            detail=(
-                "No genuine REVIEW transaction was found "
-                "in creditcard.csv using the current model thresholds."
-            ),
+            detail="Verified REVIEW demo transaction not found.",
         )
-
-    # Take the first real REVIEW transaction.
-    idx = int(review_indices[0])
 
     features = {
-        name: float(df.iloc[idx][name])
-        for name in feature_names
+        name: float(demo["features"][name])
+        for name in risk_engine.feature_names
     }
 
-    # Amount is stored separately in the dataset.
-    amount = float(df.iloc[idx]["Amount"])
+    amount = float(demo["amount"])
 
-    # Run the normal production scorer ONCE.
     result = risk_engine.score_transaction(
         features,
         transaction_amount=amount,
         include_explanation=True,
     )
 
-    # Safety check — never save something that isn't actually REVIEW.
     if result["decision"] != "REVIEW":
         raise HTTPException(
             status_code=500,
             detail=(
-                "Internal consistency error: "
-                "selected transaction is no longer REVIEW."
+                "Verified demo transaction no longer produces REVIEW "
+                "under the current production model thresholds. "
+                f"Decision={result['decision']}, "
+                f"fraud_probability={result['fraud_probability']}"
             ),
         )
 
@@ -334,24 +297,13 @@ def demo_review(db: Session = Depends(get_db)):
     db_transaction = Transaction(
         transaction_id=transaction_id,
         amount=amount,
-        fraud_probability=float(
-            result.get("fraud_probability", 0)
-        ),
-        raw_fraud_probability=float(
-            result.get("raw_fraud_probability", 0)
-        ),
-        risk_score=float(
-            result.get("risk_score", 0)
-        ),
-        decision="REVIEW",
-        expected_loss=float(
-            result.get("expected_loss", 0)
-        ),
-        features=features,
-        top_risk_factors=result.get(
-            "top_risk_factors",
-            [],
-        ),
+        fraud_probability=result["fraud_probability"],
+        raw_fraud_probability=result.get("raw_fraud_probability"),
+        risk_score=result["risk_score"],
+        decision=result["decision"],
+        expected_loss=result.get("expected_loss"),
+        features=json.dumps(features),
+        top_risk_factors=json.dumps(result.get("top_risk_factors", [])),
     )
 
     db.add(db_transaction)
@@ -364,7 +316,9 @@ def demo_review(db: Session = Depends(get_db)):
         "amount": amount,
         "features": features,
         "demo": True,
-        "source": "real_creditcard_dataset",
+        "source": "verified_demo_transaction",
+        "demo_label": demo.get("label"),
+        "disclaimer": demo.get("disclaimer"),
     }
 # --------------------------------------------------
 # Transaction History

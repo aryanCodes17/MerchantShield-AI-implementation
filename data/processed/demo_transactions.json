@@ -1,5 +1,44 @@
 [
   {
+  "id": "demo_verified_review_1",
+  "label": "verified-review",
+  "disclaimer": "Demo feature vector sourced from a real dataset row and re-scored live by the production fraud model.",
+  "features": {
+    "V1": -0.887286906,
+    "V2": 1.390001509,
+    "V3": 1.21968582,
+    "V4": 1.661425176,
+    "V5": 1.009227839,
+    "V6": -0.733908445,
+    "V7": 0.855828927,
+    "V8": 0.0000768,
+    "V9": -1.275631494,
+    "V10": -0.433393926,
+    "V11": 0.141178993,
+    "V12": -0.460348456,
+    "V13": -0.367867931,
+    "V14": -1.168339418,
+    "V15": 0.152107631,
+    "V16": 0.882231824,
+    "V17": 0.601804858,
+    "V18": -0.304092391,
+    "V19": -2.191764278,
+    "V20": -0.268347371,
+    "V21": -0.083734377,
+    "V22": -0.346930257,
+    "V23": -0.050618707,
+    "V24": 0.231044425,
+    "V25": -0.450759875,
+    "V26": -0.376205381,
+    "V27": 0.034504369,
+    "V28": 0.15777532,
+    "Amount": 7.58
+  },
+  "amount": 7.58
+},
+  
+  
+  {
     "id": "demo_elevated-risk_1",
     "label": "elevated-risk pattern",
     "disclaimer": "Synthetic demo built from dataset feature distributions, not a real customer transaction.",
